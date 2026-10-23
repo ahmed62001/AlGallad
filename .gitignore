@@ -1,0 +1,55 @@
+# Gradle and Android build products
+.gradle/
+build/
+**/build/
+**/.cxx/
+
+# Local IDE and device state
+.idea/
+*.iml
+captures/
+.DS_Store
+
+# Firebase configuration and local emulator state
+.firebaserc
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+google-services.json
+GoogleService-Info.plist
+*.json
+!app/google-services.json.example
+!firebase/firestore.indexes.json
+**/*service-account*.json
+**/*credentials*.json
+
+# Signing and credentials
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+*.pfx
+local.properties
+.env
+.env.*
+
+# Distribution artifacts and diagnostics
+*.apk
+*.aab
+*.ap_
+*.dex
+*.log
+run.log
+run.clean.log
+crash.log
+shot*.png
+
+# Generated user/content exports
+*.csv
+*.pdf
+
+# Kotlin compiler cache
+.kotlin/

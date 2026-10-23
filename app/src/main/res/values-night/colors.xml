@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Task 4: night qualifier for the COLD-START window/splash background.
+     Deliberately the SAME navy as values/colors.xml: the pre-Compose window must
+     show the brand color in both modes (a black/white night value would flash
+     against the navy splash + Compose background). The in-app dark surfaces are
+     navy-tinted darks owned by the Compose DarkColors scheme, not this XML. -->
+<resources>
+    <color name="window_bg">#0B2545</color>
+    <color name="ic_launcher_background">#0B2545</color>
+</resources>

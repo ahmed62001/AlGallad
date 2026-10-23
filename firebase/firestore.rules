@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function verified() { return signedIn() && request.auth.token.email_verified == true; }
+    function isAdmin() { return verified() && request.auth.token.email.lower() in ['admin@example.com']; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function statusOk(s) { return s in ['new', 'confirmed', 'delivered', 'cancelled']; }
+
+    function validSettings(d) {
+      return d.keys().hasOnly(['whatsapp', 'storeNameAr', 'storeNameEn', 'address'])
+        && d.keys().hasAll(['whatsapp', 'storeNameAr', 'storeNameEn', 'address'])
+        && d.whatsapp is string && d.whatsapp.size() <= 20
+        && d.storeNameAr is string && d.storeNameAr.size() <= 120
+        && d.storeNameEn is string && d.storeNameEn.size() <= 120
+        && d.address is string && d.address.size() <= 300;
+    }
+    match /settings/{doc} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validSettings(request.resource.data);
+      allow delete: if false;
+    }
+
+    function validProduct(d) {
+      return d.keys().hasOnly(['nameAr','nameEn','descAr','descEn','category','priceMinor','oldPriceMinor',
+          'available','imageCount','imgVersion','thumb','searchTokens','createdAt','updatedAt'])
+        && d.keys().hasAll(['nameAr','nameEn','descAr','descEn','category','priceMinor','oldPriceMinor',
+          'available','imageCount','imgVersion','thumb','searchTokens','createdAt','updatedAt'])
+        && d.nameAr is string && d.nameAr.size() > 0 && d.nameAr.size() <= 160
+        && d.nameEn is string && d.nameEn.size() <= 160
+        && d.descAr is string && d.descAr.size() <= 2000
+        && d.descEn is string && d.descEn.size() <= 2000
+        && d.category is string && d.category.size() <= 80
+        && d.priceMinor is int && d.priceMinor >= 0 && d.priceMinor <= 100000000
+        && d.oldPriceMinor is int && d.oldPriceMinor >= 0 && d.oldPriceMinor <= 100000000
+        && d.available is bool
+        && d.imageCount is int && d.imageCount >= 0 && d.imageCount <= 4
+        && d.imgVersion is int
+        && d.thumb is string && d.thumb.size() <= 22000
+        && d.searchTokens is list && d.searchTokens.size() <= 80
+        && d.createdAt is int
+        && d.updatedAt == request.time;
+    }
+    match /products/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validProduct(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    match /products/{id}/images/{index} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['data', 'v'])
+        && request.resource.data.keys().hasAll(['data', 'v'])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() > 0 && request.resource.data.data.size() <= 170000
+        && request.resource.data.v is int;
+      allow delete: if isAdmin();
+    }
+
+    function validProfile(d) {
+      return d.keys().hasOnly(['fullName', 'phone', 'address', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['fullName', 'phone', 'address', 'createdAt', 'updatedAt'])
+        && d.fullName is string && d.fullName.size() <= 120
+        && d.phone is string && d.phone.size() <= 20
+        && d.address is string && d.address.size() <= 300
+        && d.updatedAt == request.time;
+    }
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validProfile(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isOwner(uid) && validProfile(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
+    function validOrderCreate(d) {
+      return d.keys().hasOnly(['orderNo','userId','customerName','customerPhone','address','notes',
+          'items','totalMinor','status','createdAt','updatedAt'])
+        && d.keys().hasAll(['orderNo','userId','customerName','customerPhone','address','notes',
+          'items','totalMinor','status','createdAt','updatedAt'])
+        && d.userId == request.auth.uid
+        && d.status == 'new'
+        && d.createdAt == request.time && d.updatedAt == request.time
+        && d.orderNo is string && d.orderNo.size() <= 24
+        && d.customerName is string && d.customerName.size() >= 2 && d.customerName.size() <= 120
+        && d.customerPhone is string && d.customerPhone.matches('^01[0125][0-9]{8}$')
+        && d.address is string && d.address.size() >= 3 && d.address.size() <= 300
+        && d.notes is string && d.notes.size() <= 500
+        && d.items is list && d.items.size() >= 1 && d.items.size() <= 30
+        && d.totalMinor is int && d.totalMinor >= 0 && d.totalMinor <= 100000000;
+    }
+    match /orders/{id} {
+      allow create: if verified() && validOrderCreate(request.resource.data);
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update: if
+        (isOwner(resource.data.userId)
+          && resource.data.status == 'new' && request.resource.data.status == 'cancelled'
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+        ||
+        (isAdmin()
+          && statusOk(request.resource.data.status)
+          && request.resource.data.updatedAt == request.time
+          && (!('priceCheck' in request.resource.data) || request.resource.data.priceCheck is map)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'priceCheck']));
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}
