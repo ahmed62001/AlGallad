@@ -33,7 +33,7 @@ object WhatsAppSender {
             type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_TEXT, text)
-            putExtra("jid", "$admin@example.com")
+            putExtra("jid", "$digits@s.whatsapp.net")
             clipData = ClipData.newRawUri("", uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
